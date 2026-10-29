@@ -40,7 +40,7 @@ change the password and rotate `SESSION_SECRET`.
 | `pnpm test`    | Vitest                                        |
 | `pnpm check`   | Type-check                                    |
 | `pnpm preview` | Build and run in the local Workers runtime    |
-| `pnpm deploy`  | Build and deploy to Cloudflare Workers        |
+| `pnpm run deploy` | Build and deploy to Cloudflare Workers        |
 
 ## Data
 

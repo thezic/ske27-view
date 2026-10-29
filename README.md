@@ -11,12 +11,13 @@ cp .dev.vars.example .dev.vars   # then edit the two values
 pnpm dev
 ```
 
-Two secrets are needed:
+Three secrets are needed:
 
 | Name             | Purpose                                                              |
 | ---------------- | -------------------------------------------------------------------- |
 | `APP_PASSWORD`   | The shared password on the login page.                               |
 | `SESSION_SECRET` | Signs the session cookie. Use a long random string (`openssl rand -hex 32`). |
+| `CARTO_API_KEY`  | Free CARTO Basemaps key for the map tiles, from <https://carto.com/basemaps/apikey>. Sent to the browser as part of the tile URLs. |
 
 **Locally** they live in `.dev.vars` (git-ignored).
 
@@ -25,6 +26,7 @@ Two secrets are needed:
 ```sh
 pnpm exec wrangler secret put APP_PASSWORD
 pnpm exec wrangler secret put SESSION_SECRET
+pnpm exec wrangler secret put CARTO_API_KEY
 ```
 
 Sessions last 30 days and there is no logout. To log everyone out (e.g. if the password leaks),

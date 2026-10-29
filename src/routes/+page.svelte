@@ -9,6 +9,8 @@
 	const POLL_MS = 10_000;
 	const SWEDEN = { center: [62, 15] as [number, number], zoom: 5 };
 
+	let { data } = $props();
+
 	let mapElement: HTMLDivElement;
 	let offline = $state(false);
 	let fitAll = $state<() => void>(() => {});
@@ -22,7 +24,7 @@
 			if (disposed) return;
 
 			const map = L.map(mapElement, { zoomControl: true, attributionControl: true }).setView(SWEDEN.center, SWEDEN.zoom);
-			L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+			L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=' + encodeURIComponent(data.cartoApiKey), {
 				maxZoom: 19,
 				subdomains: 'abcd',
 				attribution: '&copy; OpenStreetMap contributors &copy; CARTO'

@@ -110,6 +110,13 @@ describe('login', () => {
 		expect(res.setCookie).toBeUndefined();
 	});
 
+	it('refuses everyone when the app is not configured with a password', async () => {
+		const unconfigured = { APP_PASSWORD: '', SESSION_SECRET: 'secret-one' };
+		const res = await request('/login', { method: 'POST', password: '', env: unconfigured });
+		expect(res.status).toBe(400);
+		expect(res.setCookie).toBeUndefined();
+	});
+
 	it('redirects a logged-in visitor from the login page to the map', async () => {
 		const res = await request('/login', { cookie: await login() });
 		expect(res.status).toBe(303);

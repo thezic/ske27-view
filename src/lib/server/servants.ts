@@ -28,7 +28,7 @@ const MOCKS: Mock[] = [
 		name: 'Anna & Erik',
 		photoUrl: '/mock/anna-erik.svg',
 		destination: gothenburg,
-		route: [stockholm, orebro, jonkoping, gothenburg],
+		route: [stockholm, orebro, jonkoping, gothenburg, jonkoping, orebro, stockholm],
 		periodSeconds: 600
 	},
 	{
@@ -42,7 +42,7 @@ const MOCKS: Mock[] = [
 		id: 'olof',
 		name: 'Olof',
 		destination: stockholm,
-		route: [sundsvall, orebro, stockholm],
+		route: [sundsvall, orebro, stockholm, orebro, sundsvall],
 		periodSeconds: 720
 	},
 	{
@@ -56,7 +56,7 @@ const MOCKS: Mock[] = [
 		name: 'Lars',
 		photoUrl: '/mock/lars.svg',
 		destination: malmo,
-		route: [gothenburg, malmo],
+		route: [gothenburg, malmo, gothenburg],
 		periodSeconds: 540
 	}
 ];

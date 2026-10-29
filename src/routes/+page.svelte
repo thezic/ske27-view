@@ -141,12 +141,10 @@
 	:global(.destination-icon) {
 		overflow: visible;
 	}
+	/* The marker's coordinate is the centre of the avatar or pin; the label hangs below it. */
 	:global(.servant) {
 		position: absolute;
-		transform: translate(-50%, -100%);
-		display: flex;
-		flex-direction: column;
-		align-items: center;
+		transform: translate(-50%, -50%);
 		font-family: system-ui, sans-serif;
 	}
 	:global(.servant .avatar) {
@@ -167,9 +165,12 @@
 		background: var(--color);
 		border: 2px solid #fff;
 		box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
-		margin-bottom: 4px;
 	}
 	:global(.servant .label) {
+		position: absolute;
+		top: 100%;
+		left: 50%;
+		transform: translateX(-50%);
 		margin-top: 2px;
 		padding: 1px 6px;
 		border-radius: 8px;
@@ -181,7 +182,7 @@
 	}
 	:global(.destination) {
 		position: absolute;
-		transform: translate(-50%, -100%);
+		transform: translate(-50%, -50%);
 	}
 	:global(.destination .pin) {
 		width: 12px;

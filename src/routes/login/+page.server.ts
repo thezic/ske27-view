@@ -11,7 +11,9 @@ export const actions: Actions = {
 	default: async ({ request, cookies }) => {
 		const env = config();
 		const password = (await request.formData()).get('password');
-		if (typeof password !== 'string' || !(await passwordMatches(password, env.APP_PASSWORD))) {
+		// An unconfigured app fails closed rather than accepting an empty password.
+		const configured = !!env.APP_PASSWORD && !!env.SESSION_SECRET;
+		if (!configured || typeof password !== 'string' || !(await passwordMatches(password, env.APP_PASSWORD))) {
 			return fail(400, { error: 'Fel lösenord' });
 		}
 		cookies.set(SESSION_COOKIE, await createSession(env.SESSION_SECRET), {

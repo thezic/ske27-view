@@ -1,30 +1,23 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import type { MapController } from '#lib/map/map-controller';
+	import { createMapController, type MapController } from '#lib/map/map-controller';
 
 	let { data } = $props();
 
 	let map = $state<MapController>();
 	let offline = $state(false);
 
-	// Leaflet needs the DOM, so it is only loaded in the browser, once the element exists.
 	function attachMap(element: HTMLElement) {
-		let cancelled = false;
-		let controller: MapController | undefined;
-
-		import('#lib/map/map-controller').then(({ createMapController }) => {
-			if (cancelled) return;
-			controller = map = createMapController({
-				element,
-				cartoApiKey: data.cartoApiKey,
-				onOffline: (value) => (offline = value),
-				onUnauthorized: () => goto('/login')
-			});
+		const controller = createMapController({
+			element,
+			cartoApiKey: data.cartoApiKey,
+			onOffline: (value) => (offline = value),
+			onUnauthorized: () => goto('/login')
 		});
+		map = controller;
 
 		return () => {
-			cancelled = true;
-			controller?.destroy();
+			controller.destroy();
 			map = undefined;
 		};
 	}

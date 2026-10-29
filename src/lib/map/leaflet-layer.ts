@@ -1,3 +1,4 @@
+import './markers.css';
 import type * as Leaflet from 'leaflet';
 import type { DestinationVisual, SceneState, ServantVisual } from './scene';
 

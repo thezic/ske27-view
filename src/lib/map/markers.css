@@ -47,7 +47,8 @@
 	position: absolute;
 	transform: translate(-50%, -50%);
 }
-.destination .pin {
+/* The Destination is the prominent pin; the Servant marker is a small, faint hint of where they are now. */
+.servant .pin {
 	width: 12px;
 	height: 12px;
 	opacity: 0.55;

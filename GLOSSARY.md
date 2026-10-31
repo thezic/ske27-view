@@ -13,8 +13,8 @@ The relocation that the Servants are taking part in. It is not a trip or a journ
 _Avoid_: Trip, journey, route
 
 **Current location**:
-Where a Servant is right now, if known. A Servant can be on the map with only a Destination.
-_Avoid_: Position, place, home address
+Where a Servant is right now, if known. Until live positions exist, a Servant's home is used as their Current location. A Servant can be on the map with only a Destination.
+_Avoid_: Position, place
 
 **Destination**:
 Where a Servant is headed, if known. Each Servant has their own, and Destinations are never shared.

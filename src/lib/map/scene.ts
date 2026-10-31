@@ -11,9 +11,18 @@ export type ServantVisual = {
 	position: LatLng;
 	opacity: number;
 	color: string;
+	/** Whether the name is shown here; it is only when there is no Destination to carry it. */
+	labelled: boolean;
 	photoUrl?: string;
 };
-export type DestinationVisual = { servantId: string; position: LatLng; opacity: number; color: string };
+export type DestinationVisual = {
+	servantId: string;
+	name: string;
+	position: LatLng;
+	opacity: number;
+	color: string;
+	labelled: boolean;
+};
 export type LineVisual = { servantId: string; from: LatLng; to: LatLng; opacity: number; color: string };
 export type SceneState = { servants: ServantVisual[]; destinations: DestinationVisual[]; lines: LineVisual[] };
 
@@ -85,7 +94,22 @@ function sync(glider: Glider, target: LatLng | undefined, now: number) {
 
 const gone = (g: Glider, now: number) => !g.present && finished(g.opacity, now);
 
-type Entity = Glider & { servant: Servant; destination?: Glider };
+/** Starts, updates or ends a glider for a location that may be missing. */
+function track(glider: Glider | undefined, target: LatLng | undefined, now: number): Glider | undefined {
+	if (!glider) return target && appear(target, now);
+	sync(glider, target, now);
+	return glider;
+}
+
+const prune = (g: Glider | undefined, now: number) => (g && gone(g, now) ? undefined : g);
+
+function visible(g: Glider | undefined, now: number) {
+	if (!g || gone(g, now)) return undefined;
+	return { position: positionAt(g.position, now), opacity: numberAt(g.opacity, now) };
+}
+
+/** A Servant has a Current location, a Destination, or both. */
+type Entity = { servant: Servant; current?: Glider; destination?: Glider };
 
 export function createScene(): Scene {
 	const entities = new Map<string, Entity>();
@@ -93,55 +117,48 @@ export function createScene(): Scene {
 	return {
 		update(servants, now) {
 			for (const [id, entity] of entities) {
-				if (gone(entity, now)) entities.delete(id);
-				else if (entity.destination && gone(entity.destination, now)) delete entity.destination;
+				entity.current = prune(entity.current, now);
+				entity.destination = prune(entity.destination, now);
+				if (!entity.current && !entity.destination) entities.delete(id);
 			}
 
 			const incoming = new Set(servants.map((s) => s.id));
 			for (const servant of servants) {
-				let entity = entities.get(servant.id);
-				if (entity) sync(entity, servant.currentLocation, now);
-				else {
-					entity = { ...appear(servant.currentLocation, now), servant };
-					entities.set(servant.id, entity);
-				}
+				const entity = entities.get(servant.id) ?? { servant };
 				entity.servant = servant;
-
-				if (servant.destination) {
-					if (!entity.destination) entity.destination = appear(servant.destination, now);
-					else sync(entity.destination, servant.destination, now);
-				} else if (entity.destination) sync(entity.destination, undefined, now);
+				entity.current = track(entity.current, servant.currentLocation, now);
+				entity.destination = track(entity.destination, servant.destination, now);
+				entities.set(servant.id, entity);
 			}
 
 			for (const [id, entity] of entities) {
 				if (incoming.has(id)) continue;
-				sync(entity, undefined, now);
-				if (entity.destination) sync(entity.destination, undefined, now);
+				entity.current = track(entity.current, undefined, now);
+				entity.destination = track(entity.destination, undefined, now);
 			}
 		},
 
 		at(now) {
 			const state: SceneState = { servants: [], destinations: [], lines: [] };
-			for (const entity of entities.values()) {
-				if (gone(entity, now)) continue;
-				const { id, name, photoUrl } = entity.servant;
+			for (const { servant, current, destination } of entities.values()) {
+				const { id, name, photoUrl } = servant;
 				const color = colorFor(id);
-				const position = positionAt(entity.position, now);
-				const opacity = numberAt(entity.opacity, now);
-				state.servants.push({ id, name, position, opacity, color, ...(photoUrl && { photoUrl }) });
+				const here = visible(current, now);
+				const there = visible(destination, now);
+				// The name sits on the Destination pin, falling back to the Servant marker when there is none.
+				const nameOnDestination = !!there && (destination!.present || !here);
 
-				const dest = entity.destination;
-				if (!dest || gone(dest, now)) continue;
-				const destPosition = positionAt(dest.position, now);
-				const destOpacity = numberAt(dest.opacity, now);
-				state.destinations.push({ servantId: id, position: destPosition, opacity: destOpacity, color });
-				state.lines.push({
-					servantId: id,
-					from: position,
-					to: destPosition,
-					opacity: Math.min(opacity, destOpacity),
-					color
-				});
+				if (here) state.servants.push({ id, name, ...here, color, labelled: !nameOnDestination, ...(photoUrl && { photoUrl }) });
+				if (there) state.destinations.push({ servantId: id, name, ...there, color, labelled: nameOnDestination });
+				if (here && there) {
+					state.lines.push({
+						servantId: id,
+						from: here.position,
+						to: there.position,
+						opacity: Math.min(here.opacity, there.opacity),
+						color
+					});
+				}
 			}
 			return state;
 		}

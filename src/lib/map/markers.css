@@ -28,7 +28,8 @@
 	border: 2px solid #fff;
 	box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
 }
-.servant .label {
+.servant .label,
+.destination .label {
 	position: absolute;
 	top: 100%;
 	left: 50%;
@@ -51,4 +52,18 @@
 	height: 12px;
 	opacity: 0.55;
 	filter: saturate(0.6);
+}
+/* Dashes flow from the Current location toward the Destination; one dash period (6 + 8) per second. */
+.route-line {
+	animation: route-flow 1s linear infinite;
+}
+@keyframes route-flow {
+	to {
+		stroke-dashoffset: -14;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.route-line {
+		animation: none;
+	}
 }

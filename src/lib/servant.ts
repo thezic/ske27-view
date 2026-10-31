@@ -5,7 +5,8 @@ export type Servant = {
 	id: string;
 	/** A person or a couple, e.g. "Anna & Erik". */
 	name: string;
-	currentLocation: LatLng;
+	/** At least one of `currentLocation` and `destination` is present. */
+	currentLocation?: LatLng;
 	destination?: LatLng;
 	photoUrl?: string;
 };

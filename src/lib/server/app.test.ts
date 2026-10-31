@@ -7,7 +7,32 @@ import * as servantsApi from '../../routes/api/servants/+server';
 const env = vi.hoisted(() => ({}) as Record<string, string>);
 vi.mock('../../lib/server/config', () => ({ config: () => env }));
 
-const ENV = { APP_PASSWORD: 'hemligt', SESSION_SECRET: 'secret-one' };
+/** A stand-in for Supabase: records the query and answers with `db.rows`, or `db.error`. */
+const db = vi.hoisted(() => ({
+	rows: [] as unknown[],
+	error: null as { message: string } | null,
+	client: undefined as unknown as [string, string],
+	query: [] as unknown[][]
+}));
+vi.mock('@supabase/supabase-js', () => ({
+	createClient: (url: string, key: string) => {
+		db.client = [url, key];
+		const builder = {
+			from: (...args: unknown[]) => (db.query.push(['from', ...args]), builder),
+			select: (...args: unknown[]) => (db.query.push(['select', ...args]), builder),
+			is: (...args: unknown[]) => (db.query.push(['is', ...args]), builder),
+			then: (resolve: (r: unknown) => unknown) => resolve({ data: db.error ? null : db.rows, error: db.error })
+		};
+		return builder;
+	}
+}));
+
+const ENV = {
+	APP_PASSWORD: 'hemligt',
+	SESSION_SECRET: 'secret-one',
+	SUPABASE_URL: 'https://db.test',
+	SUPABASE_SECRET_KEY: 'sb-secret'
+};
 const DAY = 24 * 60 * 60 * 1000;
 
 type Result = {
@@ -81,6 +106,7 @@ async function request(
 beforeEach(() => {
 	vi.useFakeTimers();
 	vi.setSystemTime(new Date('2026-06-01T12:00:00Z'));
+	Object.assign(db, { rows: [], error: null, query: [] });
 });
 afterEach(() => vi.useRealTimers());
 
@@ -111,7 +137,7 @@ describe('login', () => {
 	});
 
 	it('refuses everyone when the app is not configured with a password', async () => {
-		const unconfigured = { APP_PASSWORD: '', SESSION_SECRET: 'secret-one' };
+		const unconfigured = { ...ENV, APP_PASSWORD: '' };
 		const res = await request('/login', { method: 'POST', password: '', env: unconfigured });
 		expect(res.status).toBe(400);
 		expect(res.setCookie).toBeUndefined();
@@ -176,34 +202,60 @@ describe('access guard', () => {
 });
 
 describe('GET /api/servants', () => {
-	it('returns a JSON array of servants with optional fields omitted rather than null', async () => {
+	type Coords = [number | null, number | null];
+	const event = (id: string, name: string, [lat, lng]: Coords, [homeLat, homeLng]: Coords = [null, null]) => ({
+		id,
+		couple_names: name,
+		event_private: { actual_latitude: lat, actual_longitude: lng, home_latitude: homeLat, home_longitude: homeLng }
+	});
+
+	it('reads non-deleted events with their destination, using the secret key', async () => {
+		await request('/api/servants', { cookie: await login() });
+		expect(db.client).toEqual(['https://db.test', 'sb-secret']);
+		expect(db.query).toEqual([
+			['from', 'events'],
+			['select', 'id, couple_names, event_private(actual_latitude, actual_longitude, home_latitude, home_longitude)'],
+			['is', 'deleted_at', null]
+		]);
+	});
+
+	it('maps each event to a servant whose destination is the actual location', async () => {
+		db.rows = [event('e1', 'Anna & Erik', [57.7, 11.97]), event('e2', 'Olof', [59.33, 18.07])];
 		const res = await request('/api/servants', { cookie: await login() });
 		expect(res.status).toBe(200);
-		const servants = res.json as Record<string, unknown>[];
-		expect(Array.isArray(servants)).toBe(true);
-		expect(servants.length).toBeGreaterThanOrEqual(4);
-		for (const s of servants) {
-			expect(typeof s.id).toBe('string');
-			expect(typeof s.name).toBe('string');
-			expect(s.currentLocation).toEqual({ lat: expect.any(Number), lng: expect.any(Number) });
-			for (const key of ['destination', 'photoUrl']) {
-				if (key in s) expect(s[key]).not.toBeNull();
-			}
-		}
+		expect(res.json).toEqual([
+			{ id: 'e1', name: 'Anna & Erik', destination: { lat: 57.7, lng: 11.97 } },
+			{ id: 'e2', name: 'Olof', destination: { lat: 59.33, lng: 18.07 } }
+		]);
 	});
 
-	it('covers every combination of photo and destination being present or missing', async () => {
-		const servants = (await request('/api/servants', { cookie: await login() })).json as Record<string, unknown>[];
-		const combos = new Set(servants.map((s) => `${'photoUrl' in s}/${'destination' in s}`));
-		expect(combos).toEqual(new Set(['true/true', 'true/false', 'false/true', 'false/false']));
+	it('uses the home address as the current location, with or without a destination', async () => {
+		db.rows = [
+			event('e1', 'Anna & Erik', [57.7, 11.97], [59.33, 18.07]),
+			event('e2', 'Olof', [null, null], [62.39, 17.31]),
+			event('e3', 'Half a home', [55.6, 13.0], [62.39, null])
+		];
+		const res = await request('/api/servants', { cookie: await login() });
+		expect(res.json).toEqual([
+			{ id: 'e1', name: 'Anna & Erik', currentLocation: { lat: 59.33, lng: 18.07 }, destination: { lat: 57.7, lng: 11.97 } },
+			{ id: 'e2', name: 'Olof', currentLocation: { lat: 62.39, lng: 17.31 } },
+			{ id: 'e3', name: 'Half a home', destination: { lat: 55.6, lng: 13.0 } }
+		]);
 	});
 
-	it('moves the servants over time', async () => {
-		const cookie = await login();
-		const at = async () => (await request('/api/servants', { cookie })).json as { currentLocation: unknown }[];
-		const before = await at();
-		vi.setSystemTime(Date.now() + 60_000);
-		const after = await at();
-		expect(after.map((s) => s.currentLocation)).not.toEqual(before.map((s) => s.currentLocation));
+	it('leaves out events with nothing to place on the map', async () => {
+		db.rows = [
+			event('e1', 'Anna & Erik', [57.7, 11.97]),
+			{ id: 'e2', couple_names: 'No private row', event_private: null },
+			event('e3', 'No coordinates', [null, null]),
+			event('e4', 'Half a coordinate', [57.7, null], [null, 18.07])
+		];
+		const servants = (await request('/api/servants', { cookie: await login() })).json as { id: string }[];
+		expect(servants.map((s) => s.id)).toEqual(['e1']);
+	});
+
+	it('fails rather than returning an empty map when the database errors', async () => {
+		db.error = { message: 'boom' };
+		await expect(request('/api/servants', { cookie: await login() })).rejects.toThrow('boom');
 	});
 });

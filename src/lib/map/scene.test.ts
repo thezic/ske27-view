@@ -104,7 +104,16 @@ describe('destinations and lines', () => {
 	it('shows the destination and a line from the servant to it', () => {
 		const scene = settled({ destination: { lat: 30, lng: 50 } });
 		const { destinations, lines } = scene.at(5_000);
-		expect(destinations).toEqual([{ servantId: 'anna', position: { lat: 30, lng: 50 }, opacity: 1, color: expect.any(String) }]);
+		expect(destinations).toEqual([
+			{
+				servantId: 'anna',
+				name: 'Anna & Erik',
+				position: { lat: 30, lng: 50 },
+				opacity: 1,
+				color: expect.any(String),
+				labelled: true
+			}
+		]);
 		expect(lines).toEqual([
 			{ servantId: 'anna', from: { lat: 10, lng: 20 }, to: { lat: 30, lng: 50 }, opacity: 1, color: expect.any(String) }
 		]);
@@ -155,6 +164,79 @@ describe('destinations and lines', () => {
 		scene.update([], 10_000);
 		expect(scene.at(10_200).destinations[0].opacity).toBeLessThan(1);
 		expect(scene.at(10_400).destinations).toEqual([]);
+	});
+});
+
+describe('servants with only a destination', () => {
+	const bo: Servant = { id: 'bo', name: 'Bo', destination: { lat: 30, lng: 50 } };
+
+	it('shows only the destination, with no servant marker or line', () => {
+		const scene = createScene();
+		scene.update([bo], 0);
+		const { servants, destinations, lines } = scene.at(5_000);
+		expect(servants).toEqual([]);
+		expect(lines).toEqual([]);
+		expect(destinations).toMatchObject([{ servantId: 'bo', position: { lat: 30, lng: 50 }, opacity: 1 }]);
+	});
+
+	it('fades in, and out again when removed', () => {
+		const scene = createScene();
+		scene.update([bo], 0);
+		expect(scene.at(0).destinations[0].opacity).toBe(0);
+		expect(scene.at(400).destinations[0].opacity).toBe(1);
+		scene.update([], 10_000);
+		expect(scene.at(10_200).destinations[0].opacity).toBeLessThan(1);
+		expect(scene.at(10_400).destinations).toEqual([]);
+	});
+
+	it('gains a servant marker and line once the current location becomes known', () => {
+		const scene = createScene();
+		scene.update([bo], 0);
+		scene.update([{ ...bo, currentLocation: { lat: 10, lng: 20 } }], 10_000);
+		const { servants, lines } = scene.at(10_400);
+		expect(servants).toMatchObject([{ id: 'bo', position: { lat: 10, lng: 20 }, opacity: 1 }]);
+		expect(lines).toMatchObject([{ servantId: 'bo', from: { lat: 10, lng: 20 }, to: { lat: 30, lng: 50 }, opacity: 1 }]);
+	});
+
+	it('is dropped once the destination has faded out and there is no current location', () => {
+		const scene = createScene();
+		scene.update([bo], 0);
+		scene.update([{ id: 'bo', name: 'Bo' }], 10_000);
+		scene.update([], 20_000);
+		expect(scene.at(20_000)).toEqual({ servants: [], destinations: [], lines: [] });
+	});
+});
+
+describe('name label', () => {
+	const labels = (scene: ReturnType<typeof createScene>, now: number) => {
+		const { servants, destinations } = scene.at(now);
+		return { servant: servants[0]?.labelled, destination: destinations[0]?.labelled };
+	};
+
+	it('goes on the destination pin when there is a destination', () => {
+		const scene = createScene();
+		scene.update([anna({ destination: { lat: 30, lng: 50 } })], 0);
+		expect(labels(scene, 5_000)).toEqual({ servant: false, destination: true });
+	});
+
+	it('falls back to the servant marker when there is no destination', () => {
+		const scene = createScene();
+		scene.update([anna()], 0);
+		expect(labels(scene, 5_000)).toEqual({ servant: true, destination: undefined });
+	});
+
+	it('moves to the servant marker as soon as the destination starts fading out', () => {
+		const scene = createScene();
+		scene.update([anna({ destination: { lat: 30, lng: 50 } })], 0);
+		scene.update([anna()], 10_000);
+		expect(labels(scene, 10_200)).toEqual({ servant: true, destination: false });
+	});
+
+	it('stays on a fading destination when there is no servant marker to move to', () => {
+		const scene = createScene();
+		scene.update([{ id: 'bo', name: 'Bo', destination: { lat: 30, lng: 50 } }], 0);
+		scene.update([], 10_000);
+		expect(labels(scene, 10_200)).toEqual({ servant: undefined, destination: true });
 	});
 });
 

@@ -21,7 +21,7 @@ function servantIcon(L: L, s: ServantVisual) {
 	} else {
 		el('div', 'pin', root);
 	}
-	el('div', 'label', root).textContent = s.name;
+	if (s.labelled) el('div', 'label', root).textContent = s.name;
 	return L.divIcon({ html: root, className: 'servant-icon', iconSize: [0, 0] });
 }
 
@@ -29,12 +29,13 @@ function destinationIcon(L: L, d: DestinationVisual) {
 	const root = el('div', 'destination');
 	root.style.setProperty('--color', d.color);
 	el('div', 'pin', root);
+	if (d.labelled) el('div', 'label', root).textContent = d.name;
 	return L.divIcon({ html: root, className: 'destination-icon', iconSize: [0, 0] });
 }
 
 type Entry<M> = { marker: M; signature: string };
 
-/** Draws a scene onto a Leaflet map: markers for servants and destinations, dashed polylines between them. */
+/** Draws a scene onto a Leaflet map: markers for servants and destinations, animated dashed polylines between them. */
 export function createLeafletLayer(L: L, map: Leaflet.Map) {
 	const servants = new Map<string, Entry<Leaflet.Marker>>();
 	const destinations = new Map<string, Entry<Leaflet.Marker>>();
@@ -71,12 +72,12 @@ export function createLeafletLayer(L: L, map: Leaflet.Map) {
 		render(state: SceneState) {
 			sync(
 				servants,
-				state.servants.map((s) => ({ ...s, key: s.id, signature: `${s.name}|${s.color}|${s.photoUrl ?? ''}` })),
+				state.servants.map((s) => ({ ...s, key: s.id, signature: `${s.labelled ? s.name : ''}|${s.color}|${s.photoUrl ?? ''}` })),
 				(s) => servantIcon(L, s)
 			);
 			sync(
 				destinations,
-				state.destinations.map((d) => ({ ...d, key: d.servantId, signature: d.color })),
+				state.destinations.map((d) => ({ ...d, key: d.servantId, signature: `${d.labelled ? d.name : ''}|${d.color}` })),
 				(d) => destinationIcon(L, d)
 			);
 
@@ -86,7 +87,13 @@ export function createLeafletLayer(L: L, map: Leaflet.Map) {
 				const points: Leaflet.LatLngLiteral[] = [line.from, line.to];
 				let polyline = lines.get(line.servantId);
 				if (!polyline) {
-					polyline = L.polyline(points, { color: line.color, weight: 2, dashArray: '6 8', interactive: false }).addTo(map);
+					polyline = L.polyline(points, {
+						color: line.color,
+						weight: 2,
+						dashArray: '6 8',
+						className: 'route-line',
+						interactive: false
+					}).addTo(map);
 					lines.set(line.servantId, polyline);
 				}
 				polyline.setLatLngs(points);

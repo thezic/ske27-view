@@ -1,6 +1,6 @@
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
-import type { Servant } from '../servant';
+import type { LatLng, Servant } from '../servant';
 import { createLeafletLayer } from './leaflet-layer';
 import { createPoller } from './poller';
 import { createScene } from './scene';
@@ -33,7 +33,7 @@ export function createMapController({ element, cartoApiKey, onOffline, onUnautho
 	let fitted = false;
 
 	function fitAll() {
-		const points = servants.flatMap((s) => (s.destination ? [s.currentLocation, s.destination] : [s.currentLocation]));
+		const points = servants.flatMap((s) => [s.currentLocation, s.destination].filter((p): p is LatLng => !!p));
 		if (points.length === 0) map.setView(SWEDEN.center, SWEDEN.zoom);
 		else map.fitBounds(L.latLngBounds(points), { padding: [60, 60], maxZoom: 14 });
 	}

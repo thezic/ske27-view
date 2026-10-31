@@ -1,3 +1,5 @@
 APP_PASSWORD=change-me
 SESSION_SECRET=long-random-string
 CARTO_API_KEY=your-carto-basemaps-key
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SECRET_KEY=your-supabase-secret-key

@@ -3,11 +3,13 @@
 .destination-icon {
 	overflow: visible;
 }
-/* The marker's coordinate is the centre of the avatar or pin; the label hangs below it. */
+/* The marker's coordinate is the tip of a pin, or the centre of an avatar; the label hangs below it. */
 .servant {
 	position: absolute;
-	transform: translate(-50%, -50%);
 	font-family: system-ui, sans-serif;
+}
+.servant.photo {
+	transform: translate(-50%, -50%);
 }
 .servant .avatar {
 	width: 44px;
@@ -23,7 +25,9 @@
 	width: 22px;
 	height: 22px;
 	border-radius: 50% 50% 50% 0;
-	transform: rotate(-45deg);
+	/* Rotated, the square corner points down, half a diagonal (70.711% of the side) below the centre; lift it onto the coordinate. */
+	position: absolute;
+	transform: translate(-50%, -120.711%) rotate(-45deg);
 	background: var(--color);
 	border: 2px solid #fff;
 	box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
@@ -45,7 +49,6 @@
 }
 .destination {
 	position: absolute;
-	transform: translate(-50%, -50%);
 }
 /* The Destination is the prominent pin; the Servant marker is a small, faint hint of where they are now. */
 .servant .pin {

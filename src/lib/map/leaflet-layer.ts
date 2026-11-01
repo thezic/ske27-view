@@ -15,6 +15,7 @@ function servantIcon(L: L, s: ServantVisual) {
 	const root = el('div', 'servant');
 	root.style.setProperty('--color', s.color);
 	if (s.photoUrl) {
+		root.classList.add('photo');
 		const img = el('img', 'avatar', root) as HTMLImageElement;
 		img.src = s.photoUrl;
 		img.alt = '';
